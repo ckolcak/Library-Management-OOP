@@ -1,0 +1,75 @@
+---BAŞLIK DOSYALARI NEDEN KULLANILIR--- 
+1- Kodunu tek bir dosyaya yığmak yerine parçalara (header ve source) ayırman, profesyonel yazılım geliştirmenin temel kuralıdır.
+
+2- Header (.h): "Ne var?" sorusunun cevabıdır (Sınıfın tanımı, fonksiyon prototipleri).
+   Source (.cpp): "Nasıl çalışır?" sorusunun cevabıdır (Fonksiyonların içindeki kod mantığı). 
+
+3- Header Guard (#ifndef): Header dosyalarında bulunan bu koruma kalkanı, dosyanın bir kere derlenmesini sağlayarak, 
+   aynı kütüphanenin defalarca include edilse bile sorun yaratmamasını sağlar.
+
+---HEADER DOSYALARI YAZARKEN YAPTIGIM HATALAR---
+HATA 1: USING NAMESPACE STD;
+   Başlık dosyalarında using namespace std; kullanmak isim cakışmalarına yol açabilir.
+   Bu yuzden using namesapce std; bailık dosyalarında kullanma. O yuzden ÖRNEK: string yerine std::string yaz.
+
+HATA 2: PASS BY VALUE
+   setTitle(string title) gibi fonksiyonlarda parametreleri degerle alıyorum. Bu nedenle fonksiyon her cagrıldıgında
+   parametredeki title'ın kopyasını olusturuyorum. const std::string& kullanmak veriyi kopyalamadan sadece referans ile 
+   fonksiyona sokmamı saglar.
+
+*PASS BY REFERANCE .H İÇİ : setTitle(const std::string&)
+*PASS BY REFERANCE .CPP İÇİ : Book::setTitle(const std::string& title) {this->title = title;}
+
+* THIS POINTER: this->title yazdığında derleyiciye şunu demiş oluyorsun:
+                "Kardeşim, sol taraftaki title parametre değil; bu nesnenin (this) sahip olduğu title değişkenidir."
+
+
+NOT: Cpp dosyası içinde class kullanmıcaksın class ,public ,private bunların hepsi header dosyasında olmalı
+     
+
+*** KODUMU İYİLEŞTİRMEK İÇİN TAVSİYELER ***
+
+1- CONSTRUCTER INITIALIZATION LIST
+Constructer içinde değişkenleri = kullanarak atamak yerine Initialization List kullanmak C++ dunyasında best practice olarak kabul edilir.
+
+Member::Member(const std::string& ID, const std::string& name_, ...){
+    userID = ID;
+    name = name_;
+    ...
+}
+yerine 
+
+Member::Member(const std::string& ID, const std::string& name_, ...): userID(ID), name(name_), surname(surname_), number(nmbr), email(mail)
+{
+}
+kullan.
+
+2- THIS-> KULLANIMI
+C++ da this kullanımı zorunlu değildir. Kodumda bazı yerlerde kullanıp bazı yerlerde kullanmamışım. Buda tutarsızlık yaratıryor.
+Ya hepsinde kullan yada hiç kullanma. Şahsen, sadece isimler aynı olduğunda (parametre ismiyle değişken ismi aynı olduğunda) kullanmanı öneririm.
+
+
+*** CONSTRUCTER INITIALIZATION LISTLE ILGILI ONEMLI BILGILER ***
+
+1- **Const değişkenleri, bir değişken ya da nesne oluşturulduktan sonra set edemiyorum. 
+     Bu yüzden initializer list kullanmalıyım; çünkü OOP’de constructor gövdesinde atama yaparsam, 
+     nesne oluşturulduktan sonra değer vermeye çalışmış olurum ve bu da hataya yol açar.**
+
+
+***ERASE VE REMOVE IDIOM***
+
+1- borrowedBookIDs.erase(std::remove(borrowedBookIDs.begin(), borrowedBookIDs.end(), bookID), borrowedBookIDs.end());
+
+* Remove butun bookID'leri siler ve kalan butun elemanları onlere sıkıştırır. Fakat silinen elemanların kapladıgı alanlar silinmez ve en sonda bosluk olarak kalır.
+  Erase ilede -> borrowedBookIDs.erase(newEnd, borrowedBookIDs.end()); seklinde yeni sonla eski son arasında kalan bosluk elemanlarını sileriz. 
+  Bu bir idiomdur.
+
+
+Member* Library::findMemberByID(const std::string& id){ //ben bu fonksiyonlarda aslında nesnenin adresini donduruyorum.
+    for(int i = 0; i < members.size(); i++){            // diyorumki burda memebers[i] yani nesne nin cagırdıgı userID fonksiyonu yani IDSİ benim girdiğim
+        if(members[i].getUserID() == id){               // id ye eşitse onun adersini dondur. sonrasında aldıgım geri donus degerini bir pointer değişkenine eşitleyip
+        return &members[i];                             // eşitledikten sonra *p.Fonksiyon() seklinde istediğimi yazdırmak için kullanabilirim.
+        }                //referans kullanmama nedenim (Member* yerine Member&) Member& yapınca mutlaka bir adres dondurmeliyim fakat aradıgım ıd olmayadabilir.
+    }                    //Bu nedenle Member* kullanıyorum. Olmama durumunuda nullptr ile gosteriyorum.
+    return nullptr;
+}

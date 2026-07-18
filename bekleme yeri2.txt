@@ -1,0 +1,9 @@
+std::string timeToString(std::chrono::system_clock::time_point timePoint) const;
+
+std::string BorrowRecord::timeToString(std::chrono::system_clock::time_point timePoint) const{
+    std::time_t t = std::chrono::system_clock::to_time_t(timePoint); 
+    std::tm tm = *std::localtime(&t);
+    std::stringstream ss;
+    ss << std::put_time(&tm, "%Y-%m-%d");
+    return ss.str();
+}
