@@ -1,24 +1,22 @@
-#include <iostream>
 #include "Book.h"
 
-Book::Book(int ID, const std::string& title_, const std::string& author_, const std::string& katagori, int stck) 
-: bookID(ID), title(title_), author(author_), category(katagori), availableStock(stck < 0 ? 0 : stck) {}
+Book::Book(const std::string& bookID, const std::string& title, const std::string& author, const std::string& category, int stock)
+: bookID(bookID), title(title), author(author), category(category), availableStock(stock < 0 ? 0 : stock) {}
 
-int Book::getBookID() const {return bookID;}
+std::string Book::getBookID() const {return bookID;}
 std::string Book::getTitle() const {return title;}
 std::string Book::getAuthor() const {return author;}
 std::string Book::getCategory() const {return category;}
 int Book::getAvailableStock() const {return availableStock;}
 
-void Book::setCategory(const std::string& kategori) {category = kategori;}
-void Book::setAvailableStock(int stck){
-    availableStock = (stck < 0 ? 0 : stck);
+void Book::increaseStock(){
+    ++availableStock;
+}
+void Book::decreaseStock(){
+    availableStock = (availableStock <= 0 ? 0 : --availableStock);
 }
 
-void Book::print() const{
-    std::cout << "ID: " << bookID << std::endl;
-    std::cout << "Title: " << title << std::endl;
-    std::cout << "Author: " << author << std::endl;
-    std::cout << "Category: " << category << std::endl;
-    std::cout << "Stock: " << availableStock << std::endl;
+bool Book::operator==(const Book& other) const {
+    return bookID == other.bookID;
 }
+

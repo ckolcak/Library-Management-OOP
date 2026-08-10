@@ -1,16 +1,75 @@
 #include "Library.h"
 #include <iostream>
+#include <algorithm>
 
-void Library::addBook (const Book& b) {books.push_back(b);}
-void Library::addMember (const Member& m) {members.push_back(m);}
+void Library::addBook(const Book& b){
+    for(int i = 0; i < books.size(); i++){
+        if(b == books[i]){
+            return;
+        }
+    }
+    books.push_back(b);
+}
 
-Book* Library::findBookByID(int id){
+void Library::removeBook(const std::string& id){
+    if(borrowManager.isBookBorrowed(id)){
+        std::cout << "Book is currently borrowed and cannot be removed." << std::endl;
+        return;
+    }
+    for(int i = 0; i < books.size(); i++){
+        if(books[i].getBookID() == id){
+            books.erase(books.begin() + i);
+            return;
+        }
+    }
+    std::cout << "Book not found" << std::endl;
+}
+
+Book* Library::findBookByID(const std::string& id){
     for(int i = 0; i < books.size(); i++){
         if(books[i].getBookID() == id){
         return &books[i];
         }
     }
     return nullptr;
+}
+
+void Library::displayAllBooks() const {
+    if(!books.size()){
+        std::cout << "There are currently no books in the system" << std::endl;
+        return;
+    }
+    for(int i = 0; i < books.size(); i++){
+        std::cout << books[i].getTitle() << " | " 
+        << books[i].getAuthor() << " | " 
+        << books[i].getBookID() << " | " 
+        << books[i].getCategory() << " | " 
+        << books[i].getAvailableStock() << std::endl;
+    }
+}
+
+void Library::addMember(const Member& m){
+    for(int i = 0; i < members.size(); i++){
+        if(m == members[i]){
+            return;
+        }
+    }
+
+    members.push_back(m);
+}
+
+void Library::removeMember(const std::string& id){
+    if(borrowManager.getActiveBorrowCount(id) > 0){
+        std::cout << "Cannot remove a member who has borrowed books" << std::endl;
+        return; 
+    }
+    for(int i = 0; i < members.size(); i++){
+        if(members[i].getUserID() == id) {
+            members.erase(members.begin() + i);
+            return;
+        }
+    }
+    std::cout << "Member not found" << std::endl;
 }
 
 Member* Library::findMemberByID(const std::string& id){ 
@@ -22,48 +81,61 @@ Member* Library::findMemberByID(const std::string& id){
     return nullptr;
 }
 
-void Library::borrowBook(const std::string& memberID, int bookID){
-    Member* user1 = findMemberByID(memberID);
-    if(user1 == nullptr){
-        std::cout << "Member not found!" << std::endl;
+void Library::displayAllMembers() const {
+    if(members.empty()){
+        std::cout << "There are currently no members in the system" << std::endl;
         return;
     }
-    Book* book1 = findBookByID(bookID);
-    if(book1 == nullptr){
-        std::cout << "Book not found!" << std::endl;
-        return;
+    for(int i = 0; i < members.size();i++){
+        std::cout << members[i].getName() << " | " 
+        << members[i].getUserID() << " | " 
+        << members[i].getNumber() << " | " 
+        << members[i].getMail() << std::endl;
     }
-    if(user1->hasBook(bookID)){
-        std::cout << "You already have the book!" << std::endl;
-        return;
-    }
-    if(user1->getBorrowedBookID().size() >= user1->getMaxBorrowLimit()){
-        std::cout << "You can't borrow more than 3 books!" << std::endl;
-        return;
-    }
-    if(book1->getAvailableStock() <= 0){
-        std::cout << "This book doesn't have available stock" << std::endl;
-        return;
-    }
-    user1->addBook(bookID);
-    book1->setAvailableStock(book1->getAvailableStock() - 1);
 }
 
-void Library::returnBook(const std::string& memberID, int bookID){
-    Member* user2 = findMemberByID(memberID);
-    if(user2 == nullptr){
+void Library::displayBorrowInfo() const {
+    borrowManager.bm_displayBorrowInfo();
+}
+
+void Library::borrowBook(const std::string& memberID, const std::string& bookID){
+    Member* user = findMemberByID(memberID);
+    if(user == nullptr){
+        std::cout << "Member not found" << std::endl;
+        return;
+    }
+    Book* book = findBookByID(bookID);
+    if(book == nullptr){
+        std::cout << "Book not found" << std::endl;
+        return;
+    }
+    if(book->getAvailableStock() <= 0){
+        std::cout << "Book is out of stock" << std::endl;
+        return;
+    }
+    bool check = borrowManager.bm_BorrowBook(memberID, bookID);
+    if(check){
+    book->decreaseStock();
+    }
+}
+
+void Library::returnBook(const std::string& memberID, const std::string& bookID){
+    Member* user = findMemberByID(memberID);
+    if(user == nullptr){
         std::cout << "Member not found!" << std::endl;
         return;
     }
-    Book* book2 = findBookByID(bookID);
-    if(book2 == nullptr){
+    Book* book = findBookByID(bookID);
+    if(book == nullptr){
         std::cout << "Book not found!" << std::endl;
         return;
     }
-    if(!(user2->hasBook(bookID))){
+    if(!borrowManager.hasActiveBorrow(memberID,bookID)){
         std::cout << "You don't have this book!" << std::endl;
         return;
     }
-    user2->subtractBook(bookID);
-    book2->setAvailableStock(book2->getAvailableStock() + 1);
+    bool check = borrowManager.bm_ReturnBook(memberID,bookID);
+    if(check){
+    book->increaseStock();
+    }
 }
