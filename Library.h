@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
+#include <sstream>
 #include "Member.h"
 #include "Book.h"
 #include "BorrowManager.h"
@@ -18,11 +20,17 @@ public:
    void removeBook(const std::string& id);
    Book* findBookByID(const std::string& id);
    void displayAllBooks() const;
+   void loadBooksFromFile();
+   void saveBookToFile(const Book& b);
+   void saveBooksToFile();
 
    void addMember(const Member& m);
    void removeMember(const std::string& id);
    Member* findMemberByID(const std::string& id);
    void displayAllMembers() const;
+   void loadMembersFromFile();
+   void saveMemberToFile(const Member& m);
+   void saveMembersToFile();
 
    void displayBorrowInfo() const;
    

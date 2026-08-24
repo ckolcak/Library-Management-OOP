@@ -1,67 +1,58 @@
 #include "Library.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 int main() {
+   std::cout << "KÜTÜPHANE SİSTEMİ " << std::endl; 
+   std::cout << "----------------- " << std::endl;
 
-    Library library;
+   int choose;std::cin >> choose;
+   std::cout << std::endl;
+   std::cin.ignore();
 
-    library.displayAllBooks();
-    std::cout << "\n";
-    library.displayAllMembers();
-    std::cout << "\n";
+   std::string x,y,z,m;
+   int a;
 
-    Book book1("0AAA", "Türk Mitolojisi", "Kenan Karakaya", "Macera", 5);
-    Book book2("1BBB", "Suç ve Ceza", "Fyodor Dostoyevski", "Roman", 3);
-    Book book3("2CCC", "Beyaz Diş", "Jack London", "Macera", 4);
-    Book book4("3DDD", "Dönüşüm", "Franz Kafka", "Fantastik", 2);
+   Library library;
 
 
-    Member member1("987BN", "Mehmet Ayyıldız", "05677895625", "mehmet.ayyildiz@gmail.com");
-    Member member2("654MK", "Ayşe Demir", "05324567891", "ayse.demir@gmail.com");
-    Member member3("321LP", "Burak Yılmaz", "05539876543", "burak.yilmaz@gmail.com");
-    Member member4("852TR", "Elif Kaya", "05412345678", "elif.kaya@gmail.com");
-
-    library.addBook(book1);
-    library.addBook(book2);
-    library.addBook(book3);
-    library.addBook(book4);
-
-    library.addMember(member1);
-    library.addMember(member2);
-    library.addMember(member3);
-    library.addMember(member4);
-
-    Member* find = library.findMemberByID("987BN");
-    if(find){
-        std::cout << "MemberFound" << std::endl;
+   std::ifstream s("Deneme.txt");
+   std::string okunan;
+   while(std::getline(s,okunan)){
+       std::stringstream ss(okunan);
+       std::string bookid,bookname,authorname,category,stock;
+       std::getline(ss,bookid,'|');
+       std::getline(ss,bookname,'|');
+       std::getline(ss,authorname,'|');
+       std::getline(ss,category,'|');
+       std::getline(ss,stock,'|');
+       Book book1(bookid,bookname,authorname,category,std::stoi(stock));
+       library.addBook(book1);
+   }
+   
+   switch(choose){
+    case 1: {
+       std::cout << "Kitabın adını giriniz : ";
+       std::getline(std::cin,x);
+       std::cout << "Kitabın idsini giriniz : ";
+       std::getline(std::cin,y);
+       std::cout << "Kitabın kategorisini giriniz : ";
+       std::getline(std::cin,z);
+       std::cout << "Kitabın yazarını giriniz : ";
+       std::getline(std::cin,m);
+       std::cout << "Kitabın mevvcut stogunu giriniz : ";
+       std::cin >> a;
+       Book book1(y,x,m,z,a);
+       library.addBook(book1);
+       std::ofstream dosya_acıcı;
+       dosya_acıcı.open("Deneme.txt",std::ios::app);
+       dosya_acıcı << book1.getBookID() << "|" << book1.getTitle() << "|" << book1.getAuthor() << "|" << book1.getCategory() << "|" << book1.getAvailableStock() << std::endl;
+       dosya_acıcı.close();
+       break;
     }
-    else std::cout <<"MemberNotFound" << std::endl;
-    std::cout << "\n";
-
-    Book* find2 = library.findBookByID("987BN");
-    if(find2){
-        std::cout << "BookFound" << std::endl;
+    case 2:{
+       library.displayAllBooks();
     }
-    else std::cout <<"BookNotFound" << std::endl;
-    std::cout << "\n";
-
-    library.displayAllBooks();
-    std::cout << "\n";
-    library.displayAllMembers();
-    std::cout << "\n";
-
-    library.removeBook("0AAA");
-    library.displayAllBooks();
-    std::cout << "\n";
-
-    library.borrowBook("987BN","1BBB");
-    library.displayBorrowInfo();
-     std::cout << "\n";
-
-    library.returnBook("987BN","1BBB");
-    library.displayBorrowInfo();
-     std::cout << "\n";
-
-    
-
+    }
 }

@@ -2,16 +2,17 @@
 #include <iostream>
 #include <algorithm>
 
-void Library::addBook(const Book& b){
+void Library::addBook(const Book& b) {
     for(int i = 0; i < books.size(); i++){
         if(b == books[i]){
             return;
         }
     }
     books.push_back(b);
+    saveBookToFile(b);
 }
 
-void Library::removeBook(const std::string& id){
+void Library::removeBook(const std::string& id) {
     if(borrowManager.isBookBorrowed(id)){
         std::cout << "Book is currently borrowed and cannot be removed." << std::endl;
         return;
@@ -19,6 +20,7 @@ void Library::removeBook(const std::string& id){
     for(int i = 0; i < books.size(); i++){
         if(books[i].getBookID() == id){
             books.erase(books.begin() + i);
+            saveBooksToFile();
             return;
         }
     }
@@ -48,31 +50,68 @@ void Library::displayAllBooks() const {
     }
 }
 
-void Library::addMember(const Member& m){
+void Library::loadBooksFromFile() {
+    std::ifstream textRead("Books.txt");
+    std::string sentence;
+    while(std::getline(textRead,sentence)){
+        std::stringstream word(sentence);
+        std::string bookid,bookname,authorname,category,stock;
+        std::getline(word,bookid,'|');
+        std::getline(word,bookname,'|');
+        std::getline(word,authorname,'|');
+        std::getline(word,category,'|');
+        std::getline(word,stock,'|');
+        Book book1(bookid,bookname,authorname,category,std::stoi(stock));
+        addBook(book1);
+    }
+}
+
+
+void Library::saveBookToFile(const Book& b) {
+    std::ofstream textOpenBook;
+    textOpenBook.open("Books.txt",std::ios::app);
+    textOpenBook << b.getBookID() << "|" << b.getTitle() << "|" << b.getAuthor() << "|" << b.getCategory() << "|" << b.getAvailableStock() << std::endl;
+    textOpenBook.close();
+}
+
+void Library::saveBooksToFile() {
+    std::ofstream textOpenBook("Books.txt");
+    for(int i = 0; i < books.size(); i++){
+        textOpenBook << books[i].getBookID() << "|" 
+        << books[i].getTitle() << "|" 
+        << books[i].getAuthor() << "|" 
+        << books[i].getCategory() << "|" 
+        << books[i].getAvailableStock() << std::endl;
+    }
+    textOpenBook.close();
+}
+
+void Library::addMember(const Member& m) {
     for(int i = 0; i < members.size(); i++){
         if(m == members[i]){
             return;
         }
     }
-
     members.push_back(m);
+    saveMemberToFile(m);
 }
 
-void Library::removeMember(const std::string& id){
+void Library::removeMember(const std::string& id) {
     if(borrowManager.getActiveBorrowCount(id) > 0){
         std::cout << "Cannot remove a member who has borrowed books" << std::endl;
         return; 
     }
-    for(int i = 0; i < members.size(); i++){
+    for(int i = 0; i < members.size(); i++) {
         if(members[i].getUserID() == id) {
             members.erase(members.begin() + i);
+            saveMembersToFile();
             return;
         }
     }
     std::cout << "Member not found" << std::endl;
 }
 
-Member* Library::findMemberByID(const std::string& id){ 
+Member* Library::findMemberByID(const std::string& id) { 
     for(int i = 0; i < members.size(); i++){            
         if(members[i].getUserID() == id){               
         return &members[i];                             
@@ -92,6 +131,37 @@ void Library::displayAllMembers() const {
         << members[i].getNumber() << " | " 
         << members[i].getMail() << std::endl;
     }
+}
+
+void Library::loadMembersFromFile() {
+    std::ifstream textRead("Members.txt");
+    std::string sentence;
+    while(std::getline(textRead,sentence)){
+        std::stringstream word(sentence);
+        std::string userid,name,number,mail;
+        std::getline(word,userid,'|');
+        std::getline(word,name,'|');
+        std::getline(word,number,'|');
+        std::getline(word,mail,'|');
+        Member user1(userid,name,number,mail);
+        addMember(user1);
+    }
+}
+
+void Library::saveMemberToFile(const Member& m) {
+    std::ofstream textOpenMember;
+    textOpenMember.open("Members.txt",std::ios::app);
+    textOpenMember << m.getUserID() << "|" << m.getName() << "|" << m.getNumber() << "|" << m.getMail() << std::endl;
+    textOpenMember.close();
+}
+
+void Library::saveMembersToFile() {
+    std::ofstream textOpenMember;
+    textOpenMember.open("Members.txt");
+    for(int i = 0; i < members.size(); i++){
+        textOpenMember << members[i].getUserID() << "|" << members[i].getName() << "|" << members[i].getNumber() << "|" << members[i].getMail() << std::endl;
+    }
+    textOpenMember.close();
 }
 
 void Library::displayBorrowInfo() const {

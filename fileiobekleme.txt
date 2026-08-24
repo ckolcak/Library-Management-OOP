@@ -1,0 +1,29 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+int main(){
+    std::ofstream dosya_acıcı;
+    dosya_acıcı.open("yeni_text");
+    dosya_acıcı << "0AAA|Türk Mitolojisi|Kenan Karakaya|Macera|5" << std::endl;
+    dosya_acıcı << "1BBB|Suç ve Ceza|Fyodor Dostoyevski|Roman|3" << std::endl;
+    dosya_acıcı.close();
+
+    dosya_acıcı.open("yeni_text",std::ios::app);
+    dosya_acıcı << "2CCC|Beyaz Diş|Jack London|Macera|7" << std::endl;
+    dosya_acıcı.close();
+
+    std::ifstream s("yeni_text");
+    std::string okunan;
+    while(std::getline(s,okunan)){
+        std::cout << okunan << std::endl;
+        std::stringstream ss(okunan);  
+        std::string parca;
+
+        while(std::getline(ss, parca, '|')) {
+        std::cout << parca << std::endl;
+    }
+
+    }
+
+}
