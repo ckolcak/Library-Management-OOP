@@ -18,6 +18,15 @@ private:
 public:
    BorrowRecord(const std::string& userID, const std::string& bookID);
 
+   BorrowRecord(
+      const std::string& userID, 
+      const std::string& bookID,
+      const std::chrono::system_clock::time_point& borrowDate,
+      const std::chrono::system_clock::time_point& dueDate,
+      const std::chrono::system_clock::time_point& returnDate,
+      bool isReturned
+   );
+
    std::string getBorrowerID() const;
    std::string getBorrowedBookID() const;
 
@@ -31,7 +40,6 @@ public:
 
    bool isOverdue() const;
 
-    std::string timeToString(std::chrono::system_clock::time_point timePoint) const;
 };
 
 #endif

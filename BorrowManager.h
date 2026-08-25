@@ -18,6 +18,15 @@ public:
     bool isBookBorrowed(const std::string& bookID) const;
     bool hasActiveBorrow(const std::string& userID, const std::string& bookID) const;
     void bm_displayBorrowInfo() const;
+
+    void loadBorrowRecordsFromFile();
+    void saveBorrowRecordToFile(const BorrowRecord& br);
+    void saveBorrowRecordsToFile();
+
+    std::string timeToString(std::chrono::system_clock::time_point timePoint) const;
+
+    std::chrono::system_clock::time_point stringToTime(const std::string& s) const;//fail ekle ss için
+
 };
 
 #endif

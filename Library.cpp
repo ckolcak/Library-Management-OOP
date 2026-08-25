@@ -1,6 +1,5 @@
 #include "Library.h"
 #include <iostream>
-#include <algorithm>
 
 void Library::addBook(const Book& b) {
     for(int i = 0; i < books.size(); i++){
@@ -9,7 +8,6 @@ void Library::addBook(const Book& b) {
         }
     }
     books.push_back(b);
-    saveBookToFile(b);
 }
 
 void Library::removeBook(const std::string& id) {
@@ -93,7 +91,6 @@ void Library::addMember(const Member& m) {
         }
     }
     members.push_back(m);
-    saveMemberToFile(m);
 }
 
 void Library::removeMember(const std::string& id) {
@@ -186,6 +183,7 @@ void Library::borrowBook(const std::string& memberID, const std::string& bookID)
     bool check = borrowManager.bm_BorrowBook(memberID, bookID);
     if(check){
     book->decreaseStock();
+    saveBooksToFile();
     }
 }
 
@@ -207,5 +205,6 @@ void Library::returnBook(const std::string& memberID, const std::string& bookID)
     bool check = borrowManager.bm_ReturnBook(memberID,bookID);
     if(check){
     book->increaseStock();
+    saveBooksToFile();
     }
 }
