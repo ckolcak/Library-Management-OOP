@@ -9,10 +9,14 @@ std::string Book::getAuthor() const {return author;}
 std::string Book::getCategory() const {return category;}
 int Book::getAvailableStock() const {return availableStock;}
 
-void Book::increaseStock(){
+void Book::addStock(int stock) {
+    availableStock += stock;
+}
+
+void Book::increaseStock() {
     ++availableStock;
 }
-void Book::decreaseStock(){
+void Book::decreaseStock() {
     availableStock = (availableStock <= 0 ? 0 : --availableStock);
 }
 

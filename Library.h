@@ -8,15 +8,17 @@
 #include "Member.h"
 #include "Book.h"
 #include "BorrowManager.h"
+#include "BookApiClient.h"
 
 class Library{
 private:
    std::vector<Book> books;
    std::vector<Member> members;
    BorrowManager borrowManager;
+   BookApiClient bookApiClient;
 
 public:
-   void addBook(const Book& b);
+   bool addBookByISBN(const std::string& ISBN, int stock);
    void removeBook(const std::string& id);
    Book* findBookByID(const std::string& id);
    void displayAllBooks() const;

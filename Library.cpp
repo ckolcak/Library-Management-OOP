@@ -1,13 +1,30 @@
 #include "Library.h"
 #include <iostream>
+#include <optional>
 
-void Library::addBook(const Book& b) {
+bool Library::addBookByISBN(const std::string& ISBN, int stock) {
     for(int i = 0; i < books.size(); i++){
-        if(b == books[i]){
-            return;
+        if(ISBN == books[i].getBookID()){
+            books[i].addStock(stock); 
+            saveBooksToFile();           
+            return true;
         }
     }
+    std::string replyJson= bookApiClient.fetchBookByISBN(ISBN);
+    if(replyJson.empty()) {
+        std::cout << "Book information could not be retrieved." << std::endl;
+        return false;
+    }
+
+    std::optional<Book> result = bookApiClient.parseBook(replyJson, ISBN, stock);
+    if(!result.has_value()) {
+        std::cout << "Book not found!" << std::endl;
+        return false;
+    }
+    Book b = result.value();
     books.push_back(b);
+    saveBookToFile(b);
+    return true;
 }
 
 void Library::removeBook(const std::string& id) {
@@ -60,7 +77,7 @@ void Library::loadBooksFromFile() {
         std::getline(word,category,'|');
         std::getline(word,stock,'|');
         Book book1(bookid,bookname,authorname,category,std::stoi(stock));
-        addBook(book1);
+        books.push_back(book1);
     }
 }
 
@@ -91,6 +108,7 @@ void Library::addMember(const Member& m) {
         }
     }
     members.push_back(m);
+    saveMemberToFile(m);
 }
 
 void Library::removeMember(const std::string& id) {
@@ -141,7 +159,7 @@ void Library::loadMembersFromFile() {
         std::getline(word,number,'|');
         std::getline(word,mail,'|');
         Member user1(userid,name,number,mail);
-        addMember(user1);
+        members.push_back(user1);
     }
 }
 
