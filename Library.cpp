@@ -18,7 +18,7 @@ bool Library::addBookByISBN(const std::string& ISBN, int stock) {
 
     std::optional<Book> result = bookApiClient.parseBook(replyJson, ISBN, stock);
     if(!result.has_value()) {
-        std::cout << "Book not found!" << std::endl;
+        std::cout << "Book not found! ISBN: " << ISBN << std::endl;
         return false;
     }
     Book b = result.value();
@@ -103,7 +103,7 @@ void Library::saveBooksToFile() {
 
 void Library::addMember(const Member& m) {
     for(int i = 0; i < members.size(); i++){
-        if(m == members[i]){
+        if(m.getUserID() == members[i].getUserID()){
             return;
         }
     }

@@ -1,6 +1,8 @@
 #include "BookApiClient.h"
 #include <iostream>
 #include <cstdlib>
+#include <thread>
+#include <chrono>
 
 size_t BookApiClient::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp){
     size_t fullSize = size * nmemb;
@@ -30,12 +32,45 @@ std::string BookApiClient::fetchBookByISBN(const std::string& ISBN){
     curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,WriteCallback);
     curl_easy_setopt(curl,CURLOPT_WRITEDATA,&readBuffer);
 
-    result = curl_easy_perform(curl);
+    int cntr = 0;
 
-    if(result != CURLE_OK){
-        std::cout << curl_easy_strerror(result) << std::endl;
-        curl_easy_cleanup(curl);
-        return "";
+    while(cntr < 3) {
+        result = curl_easy_perform(curl);
+
+        if(result != CURLE_OK) {
+            std::cout << curl_easy_strerror(result) << std::endl;
+            curl_easy_cleanup(curl);
+            return "";
+        }
+
+        long statusCode = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
+        
+        if(statusCode == 200) {
+            break;
+        }
+        if(statusCode == 400) {
+            std::cout << "Bad request: The request format is invalid" << std::endl;
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        if(statusCode == 404) {
+            std::cout << "Not found: No book was found for the given ISBN" << std::endl;
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        if (statusCode == 429) {
+            std::cout << "Too many requests. Retry after a short delay" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            readBuffer.clear();
+        }
+        if(statusCode == 500 || statusCode == 503) {
+            std::cout << "Server error. Retry after a short delay" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            readBuffer.clear();
+        }
+        
+        cntr++;
     }
 
     curl_easy_cleanup(curl);

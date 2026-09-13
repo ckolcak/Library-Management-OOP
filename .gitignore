@@ -1,6 +1,8 @@
 .vscode/
-app
 library
-Deneme.txt
 not(API).txt
 Notlar.txt
+Books.txt
+Members.txt
+BorrowRecords.txt
+libcurl-lohmann.txt
