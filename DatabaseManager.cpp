@@ -636,7 +636,7 @@ void DatabaseManager::fetchBorrowRecords(std::vector <BorrowRecord>& borrowRecor
     borrowRecords.clear();
 
     const char* showBorrowRecord = 
-    "SELECT memberID, isbn, borrowDate, dueDate, returnDate "
+    "SELECT recordID, memberID, isbn, borrowDate, dueDate, returnDate "
     "FROM BorrowRecords "
     "ORDER BY memberID COLLATE NOCASE, isbn, recordID "
     "LIMIT ? OFFSET ?;";
@@ -653,18 +653,19 @@ void DatabaseManager::fetchBorrowRecords(std::vector <BorrowRecord>& borrowRecor
     sqlite3_bind_int(stmt, 2, offset);
     
     while((result = sqlite3_step(stmt)) == SQLITE_ROW) {
-        std::string memberID = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        std::string isbn = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        std::string borrowDate = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        std::string dueDate = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        int recordID = sqlite3_column_int(stmt,0);
+        std::string memberID = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        std::string isbn = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        std::string borrowDate = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        std::string dueDate = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         std::optional<SysClock::time_point> returnDate = std::nullopt;
-        int res = sqlite3_column_type(stmt, 4);
+        int res = sqlite3_column_type(stmt, 5);
         if(res != SQLITE_NULL) {
-            std::string returnDateStr = reinterpret_cast<const char*> (sqlite3_column_text(stmt, 4));
+            std::string returnDateStr = reinterpret_cast<const char*> (sqlite3_column_text(stmt, 5));
             returnDate = stringToTime(returnDateStr);
         } 
 
-        BorrowRecord borrowrecord(memberID, isbn, stringToTime(borrowDate), stringToTime(dueDate), returnDate);
+        BorrowRecord borrowrecord(recordID, memberID, isbn, stringToTime(borrowDate), stringToTime(dueDate), returnDate);
         borrowRecords.push_back(borrowrecord);
     }
 

@@ -8,6 +8,7 @@
 
 class BorrowRecord{
 private:
+   int recordID; 
    std::string userID;
    std::string bookID;
    const int borrowDurationDays = 14;
@@ -20,6 +21,7 @@ public:
    BorrowRecord(const std::string& userID, const std::string& bookID);
 
    BorrowRecord(
+      int recordID,
       const std::string& userID, 
       const std::string& bookID,
       const SysClock::time_point& borrowDate,
@@ -27,6 +29,7 @@ public:
       const std::optional<SysClock::time_point>& returnDate
    );
 
+   int getRecordID() const;
    std::string getUserID() const;
    std::string getBorrowedBookID() const;
 
