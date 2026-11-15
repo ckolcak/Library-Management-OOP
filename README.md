@@ -25,10 +25,6 @@ The project simulates the core operations of a real library system, including bo
   * Due-date tracking (14 days)
   * Borrow date, due date, and return date are stored for every record
   * Stock and borrow records are always updated together
-* 📄 Paginated listing
-
-  * Books, members, and borrow records can be listed page by page using limit and offset
-  * Books are sorted alphabetically by title, members by name
 * 🌐 Google Books API integration
 
   * Search books using ISBN
