@@ -66,9 +66,3 @@ int main() {
     }
 }
 
-//çalıştırma komutu:
-/*
-g++ -std=c++17 -Wall -Wextra main.cpp Book.cpp Member.cpp BorrowRecord.cpp TimeUtils.cpp DatabaseManager.cpp BookApiClient.cpp Library.cpp -I/opt/homebrew/include -I/opt/homebrew/opt/sqlite/include -L/opt/homebrew/opt/sqlite/lib -lcurl -lsqlite3 -o app
-rm -f main.db && ./app
-*/
-
