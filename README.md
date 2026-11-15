@@ -202,8 +202,6 @@ rm -f main.db && ./app
 
 ## 🔮 Planned Improvements
 
-* [x] SQLite database integration
-* [x] Better API error handling and retry logic
 * [ ] Three user roles: **Admin**, **Librarian**, and **Member**, each with its own permissions
 * [ ] Login with username and password
 * [ ] Password security: passwords stored only as salted hashes (Argon2), never as plain text
