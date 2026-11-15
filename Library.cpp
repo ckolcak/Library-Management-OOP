@@ -1,228 +1,166 @@
 #include "Library.h"
+#include "TimeUtils.h"
+#include <vector>
 #include <iostream>
 #include <optional>
 
-bool Library::addBookByISBN(const std::string& ISBN, int stock) {
-    for(int i = 0; i < books.size(); i++){
-        if(ISBN == books[i].getBookID()){
-            books[i].addStock(stock); 
-            saveBooksToFile();           
-            return true;
-        }
-    }
-    std::string replyJson= bookApiClient.fetchBookByISBN(ISBN);
-    if(replyJson.empty()) {
-        std::cout << "Book information could not be retrieved." << std::endl;
+
+bool Library::addBookByISBN(const std::string& isbn, int stock) {
+    if(stock <= 0) {
+        std::cerr << "Stock must be positive" << std::endl; 
         return false;
     }
 
-    std::optional<Book> result = bookApiClient.parseBook(replyJson, ISBN, stock);
-    if(!result.has_value()) {
-        std::cout << "Book not found! ISBN: " << ISBN << std::endl;
+    std::optional<Book> bk = dbManager.findBookByISBN(isbn);
+    if(bk.has_value()) {
+        if(!dbManager.increaseBookStock(isbn, stock)) {
+            std::cerr << "Failed to update stock for ISBN: " + isbn << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    std::string response = bookApiClient.fetchBookByISBN(isbn);
+    bk = bookApiClient.parseBook(response, isbn, stock);
+    if(bk == std::nullopt) {
+        std::cerr << "Book not found" << std::endl;
         return false;
     }
-    Book b = result.value();
-    books.push_back(b);
-    saveBookToFile(b);
+    Book b = bk.value();
+    dbManager.addBook(isbn, b.getTitle(), b.getAuthor(), b.getCategory(), b.getAvailableStock());
     return true;
 }
 
-void Library::removeBook(const std::string& id) {
-    if(borrowManager.isBookBorrowed(id)){
-        std::cout << "Book is currently borrowed and cannot be removed." << std::endl;
-        return;
+bool Library::removeBook(const std::string& isbn) {
+    if(dbManager.bookHasActiveBorrow(isbn)) {
+        std::cerr << "Cannot remove book: it is currently borrowed" << std::endl;
+        return false;
     }
-    for(int i = 0; i < books.size(); i++){
-        if(books[i].getBookID() == id){
-            books.erase(books.begin() + i);
-            saveBooksToFile();
-            return;
+
+    if(!dbManager.removeBook(isbn)) {
+        std::cerr << "Book not found" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
+bool Library::addMember(const Member& m) {
+    std::optional <Member> mem = dbManager.findMemberByID(m.getUserID());
+    if(mem.has_value()) {
+        std::cerr << "Member already exists" << std::endl;
+        return false;
+    }
+
+    dbManager.addMember(m.getUserID(), m.getName(), m.getNumber(), m.getMail());
+    return true;
+}
+
+bool Library::removeMember(const std::string& id) {
+    if(dbManager.memberHasActiveBorrow(id)) {
+        std::cerr << "Cannot remove member: they have a borrowed book" << std::endl;
+        return false;
+    }
+
+    if(!dbManager.removeMember(id)) {
+        std::cerr << "Member not found" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
+bool Library::borrowBook(const std::string& memberID, const std::string& isbn) {
+    std::optional <Member> mem = dbManager.findMemberByID(memberID);
+    if(mem == std::nullopt) {
+        std::cerr << "Member not found" << std::endl;
+        return false;
+    }
+
+    if(dbManager.memberHasActiveBorrow(memberID)) {
+        std::cerr << "Member already has a borrowed book" << std::endl;
+        return false;
+    }
+    BorrowRecord br(memberID, isbn);
+    if(!dbManager.borrowBook(br)) {
+        std::optional<Book> bk = dbManager.findBookByISBN(isbn);
+        if(bk == std::nullopt) {
+            std::cerr << "Book not found" << std::endl;
+            return false;
         }
+        std::cerr << "Book is out of stock" << std::endl;
+        return false;
     }
-    std::cout << "Book not found" << std::endl;
+    return true;
 }
 
-Book* Library::findBookByID(const std::string& id){
-    for(int i = 0; i < books.size(); i++){
-        if(books[i].getBookID() == id){
-        return &books[i];
-        }
+bool Library::returnBook(const std::string& memberID, const std::string& isbn) {
+    if(!dbManager.returnBook(memberID, isbn)) {
+        std::cerr << "No active borrow found for this member and book" << std::endl;
+        return false;
     }
-    return nullptr;
+    return true;
 }
 
-void Library::displayAllBooks() const {
-    if(!books.size()){
-        std::cout << "There are currently no books in the system" << std::endl;
+
+void Library::displayBooks(int limit, int offset) const {
+    if(limit <= 0 || offset < 0) {
+        std::cerr << "Invalid limit or offset" << std::endl;
+        return;
+    } 
+    std::vector<Book> bk;
+    dbManager.fetchBooks(bk, limit, offset);
+    if(bk.empty()) {
+        std::cout << "No books to display" << std::endl;
         return;
     }
-    for(int i = 0; i < books.size(); i++){
-        std::cout << books[i].getTitle() << " | " 
-        << books[i].getAuthor() << " | " 
-        << books[i].getBookID() << " | " 
-        << books[i].getCategory() << " | " 
-        << books[i].getAvailableStock() << std::endl;
+    for(size_t i = 0; i < bk.size(); i++) {
+        std::cout << bk[i].getTitle() << " | "
+              << bk[i].getAuthor() << " | "
+              << bk[i].getBookID() << " | "
+              << bk[i].getCategory() << " | "
+              << bk[i].getAvailableStock() << std::endl;
     }
 }
 
-void Library::loadBooksFromFile() {
-    std::ifstream textRead("Books.txt");
-    std::string sentence;
-    while(std::getline(textRead,sentence)){
-        std::stringstream word(sentence);
-        std::string bookid,bookname,authorname,category,stock;
-        std::getline(word,bookid,'|');
-        std::getline(word,bookname,'|');
-        std::getline(word,authorname,'|');
-        std::getline(word,category,'|');
-        std::getline(word,stock,'|');
-        Book book1(bookid,bookname,authorname,category,std::stoi(stock));
-        books.push_back(book1);
-    }
-}
-
-
-void Library::saveBookToFile(const Book& b) {
-    std::ofstream textOpenBook;
-    textOpenBook.open("Books.txt",std::ios::app);
-    textOpenBook << b.getBookID() << "|" << b.getTitle() << "|" << b.getAuthor() << "|" << b.getCategory() << "|" << b.getAvailableStock() << std::endl;
-    textOpenBook.close();
-}
-
-void Library::saveBooksToFile() {
-    std::ofstream textOpenBook("Books.txt");
-    for(int i = 0; i < books.size(); i++){
-        textOpenBook << books[i].getBookID() << "|" 
-        << books[i].getTitle() << "|" 
-        << books[i].getAuthor() << "|" 
-        << books[i].getCategory() << "|" 
-        << books[i].getAvailableStock() << std::endl;
-    }
-    textOpenBook.close();
-}
-
-void Library::addMember(const Member& m) {
-    for(int i = 0; i < members.size(); i++){
-        if(m.getUserID() == members[i].getUserID()){
-            return;
-        }
-    }
-    members.push_back(m);
-    saveMemberToFile(m);
-}
-
-void Library::removeMember(const std::string& id) {
-    if(borrowManager.getActiveBorrowCount(id) > 0){
-        std::cout << "Cannot remove a member who has borrowed books" << std::endl;
-        return; 
-    }
-    for(int i = 0; i < members.size(); i++) {
-        if(members[i].getUserID() == id) {
-            members.erase(members.begin() + i);
-            saveMembersToFile();
-            return;
-        }
-    }
-    std::cout << "Member not found" << std::endl;
-}
-
-Member* Library::findMemberByID(const std::string& id) { 
-    for(int i = 0; i < members.size(); i++){            
-        if(members[i].getUserID() == id){               
-        return &members[i];                             
-        }                
-    }                    
-    return nullptr;
-}
-
-void Library::displayAllMembers() const {
-    if(members.empty()){
-        std::cout << "There are currently no members in the system" << std::endl;
+void Library::displayMembers(int limit, int offset) const {
+    if(limit <= 0 || offset < 0) {
+        std::cerr << "Invalid limit or offset" << std::endl;
+        return;
+    } 
+    std::vector<Member> mem;
+    dbManager.fetchMembers(mem,limit,offset);
+    if(mem.empty()) {
+        std::cout << "No members to display" << std::endl;
         return;
     }
-    for(int i = 0; i < members.size();i++){
-        std::cout << members[i].getName() << " | " 
-        << members[i].getUserID() << " | " 
-        << members[i].getNumber() << " | " 
-        << members[i].getMail() << std::endl;
+    for(size_t i = 0; i < mem.size(); i++) {
+        std::cout << mem[i].getName() << " | "
+              << mem[i].getUserID() << " | "
+              << mem[i].getNumber() << " | "
+              << mem[i].getMail() << std::endl;
     }
 }
 
-void Library::loadMembersFromFile() {
-    std::ifstream textRead("Members.txt");
-    std::string sentence;
-    while(std::getline(textRead,sentence)){
-        std::stringstream word(sentence);
-        std::string userid,name,number,mail;
-        std::getline(word,userid,'|');
-        std::getline(word,name,'|');
-        std::getline(word,number,'|');
-        std::getline(word,mail,'|');
-        Member user1(userid,name,number,mail);
-        members.push_back(user1);
+void Library::displayBorrowRecords(int limit, int offset) const {
+     if(limit <= 0 || offset < 0) {
+        std::cerr << "Invalid limit or offset" << std::endl;
+        return;
     }
-}
+    std::vector<BorrowRecord> br;
+    dbManager.fetchBorrowRecords(br, limit, offset);
+    if(br.empty()) {
+        std::cout << "No borrow records to display" << std::endl;
+        return;
+    }
+    for (size_t i = 0; i < br.size(); i++) {
+    std::optional<SysClock::time_point> returnDate = br[i].getReturnDate();
 
-void Library::saveMemberToFile(const Member& m) {
-    std::ofstream textOpenMember;
-    textOpenMember.open("Members.txt",std::ios::app);
-    textOpenMember << m.getUserID() << "|" << m.getName() << "|" << m.getNumber() << "|" << m.getMail() << std::endl;
-    textOpenMember.close();
+    std::cout << br[i].getUserID() << " | "
+              << br[i].getBorrowedBookID() << " | "
+              << timeToString(br[i].getBorrowDate()) << " | "
+              << timeToString(br[i].getDueDate()) << " | "
+              << (returnDate.has_value() ? timeToString(returnDate.value()) : "Not returned")
+              << std::endl;
 }
-
-void Library::saveMembersToFile() {
-    std::ofstream textOpenMember;
-    textOpenMember.open("Members.txt");
-    for(int i = 0; i < members.size(); i++){
-        textOpenMember << members[i].getUserID() << "|" << members[i].getName() << "|" << members[i].getNumber() << "|" << members[i].getMail() << std::endl;
-    }
-    textOpenMember.close();
-}
-
-void Library::displayBorrowInfo() const {
-    borrowManager.bm_displayBorrowInfo();
-}
-
-void Library::borrowBook(const std::string& memberID, const std::string& bookID){
-    Member* user = findMemberByID(memberID);
-    if(user == nullptr){
-        std::cout << "Member not found" << std::endl;
-        return;
-    }
-    Book* book = findBookByID(bookID);
-    if(book == nullptr){
-        std::cout << "Book not found" << std::endl;
-        return;
-    }
-    if(book->getAvailableStock() <= 0){
-        std::cout << "Book is out of stock" << std::endl;
-        return;
-    }
-    bool check = borrowManager.bm_BorrowBook(memberID, bookID);
-    if(check){
-    book->decreaseStock();
-    saveBooksToFile();
-    }
-}
-
-void Library::returnBook(const std::string& memberID, const std::string& bookID){
-    Member* user = findMemberByID(memberID);
-    if(user == nullptr){
-        std::cout << "Member not found!" << std::endl;
-        return;
-    }
-    Book* book = findBookByID(bookID);
-    if(book == nullptr){
-        std::cout << "Book not found!" << std::endl;
-        return;
-    }
-    if(!borrowManager.hasActiveBorrow(memberID,bookID)){
-        std::cout << "You don't have this book!" << std::endl;
-        return;
-    }
-    bool check = borrowManager.bm_ReturnBook(memberID,bookID);
-    if(check){
-    book->increaseStock();
-    saveBooksToFile();
-    }
 }

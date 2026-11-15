@@ -1,44 +1,32 @@
 #include "BorrowRecord.h"
 
 BorrowRecord::BorrowRecord(const std::string& userID, const std::string& bookID):  
-borrowerID(userID), 
-borrowedBookID(bookID), 
-isReturned(false), 
-borrowDate(std::chrono::system_clock::now()), 
+userID(userID), 
+bookID(bookID), 
+borrowDate(SysClock::now()), 
 dueDate(borrowDate + std::chrono::hours(24*borrowDurationDays)),
-returnDate{}
+returnDate(std::nullopt)
 {}
 
 BorrowRecord::BorrowRecord(
 const std::string& userID, 
 const std::string& bookID,
-const std::chrono::system_clock::time_point& borrowDate,
-const std::chrono::system_clock::time_point& dueDate,
-const std::chrono::system_clock::time_point& returnDate,
-bool isReturned
+const SysClock::time_point& borrowDate,
+const SysClock::time_point& dueDate,
+const std::optional<SysClock::time_point>& returnDate
 ):
-borrowerID(userID),
-borrowedBookID(bookID),
+userID(userID),
+bookID(bookID),
 borrowDate(borrowDate),
 dueDate(dueDate),
-returnDate(returnDate),
-isReturned(isReturned)
+returnDate(returnDate)
 {}
 
-std::string BorrowRecord::getBorrowerID() const {return borrowerID;}
-std::string BorrowRecord::getBorrowedBookID() const {return borrowedBookID;}
+std::string BorrowRecord::getUserID() const {return userID;}
+std::string BorrowRecord::getBorrowedBookID() const {return bookID;}
 
-std::chrono::system_clock::time_point BorrowRecord::getBorrowDate() const {return borrowDate;}
-std::chrono::system_clock::time_point BorrowRecord::getDueDate() const {return dueDate;}
-std::chrono::system_clock::time_point BorrowRecord::getReturnDate() const {return returnDate;}
-
-bool BorrowRecord::getIsReturned() const {return isReturned;}
-
-void BorrowRecord::markReturned() {
-    if(isReturned) return;
-    
-    isReturned = true;
-    returnDate = std::chrono::system_clock::now();
+SysClock::time_point BorrowRecord::getBorrowDate() const {return borrowDate;}
+SysClock::time_point BorrowRecord::getDueDate() const {return dueDate;}
+std::optional<SysClock::time_point> BorrowRecord::getReturnDate() const {
+    return returnDate;
 }
-
-bool BorrowRecord::isOverdue() const {return !isReturned && std::chrono::system_clock::now() > dueDate ? true : false;}

@@ -18,9 +18,6 @@ public:
     std::string getNumber() const;
     std::string getMail() const;
 
-    void setNumber(const std::string& number);
-    void setMail(const std::string& mail);
-
     bool operator==(const Member& other) const;
 
 };

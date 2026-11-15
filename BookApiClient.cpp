@@ -1,8 +1,11 @@
 #include "BookApiClient.h"
 #include <iostream>
-#include <cstdlib>
-#include <thread>
+#include <cstdlib>//std::getenv
+#include <thread>//std::this_thread::sleep_for
 #include <chrono>
+#include <stdexcept>
+
+using json = nlohmann::json;
 
 size_t BookApiClient::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp){
     size_t fullSize = size * nmemb;
@@ -11,19 +14,17 @@ size_t BookApiClient::WriteCallback(void* contents, size_t size, size_t nmemb, s
 }
 
 std::string BookApiClient::fetchBookByISBN(const std::string& ISBN){
-    const char* key = std::getenv("GOOGLE_BOOKS_API_KEY"); //environment variableyi getenv ile çekip const char* türüne eşitledim. getnev c fonksiyonu ondan char* dondurur.
-    if(!key){
-        std::cout << "Environment variable not find!" << std::endl;
-        return "";
-    }
+    const char* key = std::getenv("GOOGLE_BOOKS_API_KEY");
+    if(!key)
+        throw std::runtime_error("Environment variable not found!");
+    
     std::string apiKey = key;
     std::string URL = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + ISBN + "&key=" + apiKey;
 
     CURL* curl = curl_easy_init();
-    if(!curl) {
-        std::cout << "Failed to initialize CURL." << std::endl;
-        return "";
-    }
+    if(!curl)
+        throw std::runtime_error("Failed to initialize CURL.");
+    
     CURLcode result;
     std::string readBuffer;
 
@@ -35,72 +36,74 @@ std::string BookApiClient::fetchBookByISBN(const std::string& ISBN){
     int cntr = 0;
 
     while(cntr < 3) {
-        result = curl_easy_perform(curl);
-
+        result = curl_easy_perform(curl);// WriteCallback gelen veriyi buffer'ın sonuna ekliyor, bu yüzden her tekrar denemeden önce buffer temizleniyor.                             
         if(result != CURLE_OK) {
-            std::cout << curl_easy_strerror(result) << std::endl;
+            std::string error = curl_easy_strerror(result);
             curl_easy_cleanup(curl);
-            return "";
+            throw std::runtime_error("Failed to perform HTTP request: " + error);
         }
 
         long statusCode = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
         
-        if(statusCode == 200) {
-            break;
+        switch(statusCode) {
+            case 200: 
+                curl_easy_cleanup(curl);
+                return readBuffer;
+            case 400:
+                curl_easy_cleanup(curl);
+                throw std::runtime_error("Bad request: The request format is invalid");
+            case 404:
+                curl_easy_cleanup(curl);
+                throw std::runtime_error("Not found: No book was found for the given ISBN");
+            case 429: 
+            case 500: 
+            case 503:
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                readBuffer.clear();
+                break;
+            default:
+                curl_easy_cleanup(curl);
+                throw std::runtime_error("Unexpected HTTP status code: " + std::to_string(statusCode));
         }
-        if(statusCode == 400) {
-            std::cout << "Bad request: The request format is invalid" << std::endl;
-            curl_easy_cleanup(curl);
-            return "";
-        }
-        if(statusCode == 404) {
-            std::cout << "Not found: No book was found for the given ISBN" << std::endl;
-            curl_easy_cleanup(curl);
-            return "";
-        }
-        if (statusCode == 429) {
-            std::cout << "Too many requests. Retry after a short delay" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            readBuffer.clear();
-        }
-        if(statusCode == 500 || statusCode == 503) {
-            std::cout << "Server error. Retry after a short delay" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            readBuffer.clear();
-        }
-        
         cntr++;
     }
-
     curl_easy_cleanup(curl);
-
-    return readBuffer;
-
+    throw std::runtime_error("Request failed after 3 attempts");
 }
 
 std::optional<Book> BookApiClient::parseBook(const std::string& readBuffer, const std::string& ISBN, int stock) {
-    if(readBuffer.empty()) {
-        return std::nullopt;
-    }
-    nlohmann::json j = nlohmann::json::parse(readBuffer);
-    if(!j.contains("items") || j["items"].empty()) {
-        return std::nullopt;
-    }
-    if(!(j["items"][0]["volumeInfo"].contains("title")) || 
-       j["items"][0]["volumeInfo"]["title"].empty() ||
-       !(j["items"][0]["volumeInfo"].contains("authors")) || 
-       j["items"][0]["volumeInfo"]["authors"].empty()) {
-        return std::nullopt;
-    }
-    std::string title = j["items"][0]["volumeInfo"]["title"];
-    std::string author = j["items"][0]["volumeInfo"]["authors"][0];
-    std::string category = "Unknown";
-    if(j["items"][0]["volumeInfo"].contains("categories") && !(j["items"][0]["volumeInfo"]["categories"].empty())) {
-        category = j["items"][0]["volumeInfo"]["categories"][0];
-    }
+    std::string title;
+    std::string author = "Unknown";
+    std::string category = "Uncategorized";
 
+    try {
+        json j = json::parse(readBuffer);
+
+        if(!j.contains("items") || j["items"].empty())
+            return std::nullopt;
+
+        if(!(j["items"][0].contains("volumeInfo")))
+            return std::nullopt;
+
+        if(!(j["items"][0]["volumeInfo"].contains("title")))
+            return std::nullopt;
+        
+        title = j["items"][0]["volumeInfo"]["title"];
+        if(title.empty())
+            return std::nullopt;
+
+        if((j["items"][0]["volumeInfo"].contains("authors")) && !(j["items"][0]["volumeInfo"]["authors"].empty())) {
+            author = j["items"][0]["volumeInfo"]["authors"][0];
+        }
+        if(j["items"][0]["volumeInfo"].contains("categories") && !(j["items"][0]["volumeInfo"]["categories"].empty())) {
+            category = j["items"][0]["volumeInfo"]["categories"][0];
+        }
+    }
+    catch (const json::exception& e) {
+        std::string errorMsg = e.what();
+        throw std::runtime_error("JSON error: " + errorMsg);
+    }
     Book book(ISBN, title, author, category, stock);
     return book;
-    
 }

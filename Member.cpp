@@ -8,9 +8,6 @@ std::string Member::getName() const {return name;}
 std::string Member::getNumber() const {return phoneNumber;}
 std::string Member::getMail() const {return email;}
 
-void Member::setNumber(const std::string& nmbr) {phoneNumber = nmbr;}
-void Member::setMail(const std::string& mail) {email = mail;}
-
 bool Member::operator==(const Member& other) const{
     return userID == other.userID;
 }

@@ -1,43 +1,29 @@
 #ifndef LIBRARY_H
 #define LIBRARY_H
 
-#include <string>
-#include <vector>
-#include <fstream>
-#include <sstream>
 #include "Member.h"
-#include "Book.h"
-#include "BorrowManager.h"
 #include "BookApiClient.h"
+#include "DatabaseManager.h"
+#include <string>
 
 class Library{
 private:
-   std::vector<Book> books;
-   std::vector<Member> members;
-   BorrowManager borrowManager;
    BookApiClient bookApiClient;
+   DatabaseManager dbManager;
 
 public:
-   bool addBookByISBN(const std::string& ISBN, int stock);
-   void removeBook(const std::string& id);
-   Book* findBookByID(const std::string& id);
-   void displayAllBooks() const;
-   void loadBooksFromFile();
-   void saveBookToFile(const Book& b);
-   void saveBooksToFile();
+   bool addBookByISBN(const std::string& isbn, int stock);
+   bool removeBook(const std::string& isbn);
 
-   void addMember(const Member& m);
-   void removeMember(const std::string& id);
-   Member* findMemberByID(const std::string& id);
-   void displayAllMembers() const;
-   void loadMembersFromFile();
-   void saveMemberToFile(const Member& m);
-   void saveMembersToFile();
+   bool addMember(const Member& m);
+   bool removeMember(const std::string& id);
 
-   void displayBorrowInfo() const;
+   void displayBooks(int limit, int offset) const;
+   void displayMembers(int limit, int offset) const;
+   void displayBorrowRecords(int limit, int offset) const;
    
-   void borrowBook(const std::string& memberID, const std::string& bookID);
-   void returnBook(const std::string& memberID, const std::string& bookID);
+   bool borrowBook(const std::string& memberID, const std::string& isbn);
+   bool returnBook(const std::string& memberID, const std::string& isbn);
 
 };
 

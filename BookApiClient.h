@@ -10,7 +10,7 @@
 
 class BookApiClient {
 private:
-    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp);
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp);// libcurl, this parametresi olmayan düz bir C fonksiyonu beklediği için static.
 
 public:
     std::string fetchBookByISBN(const std::string& ISBN);

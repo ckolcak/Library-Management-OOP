@@ -20,10 +20,6 @@ public:
     std::string getCategory() const;
     int getAvailableStock() const;
 
-    void addStock(int stock);
-    void increaseStock();
-    void decreaseStock();
-
     bool operator==(const Book& other) const;
 
 };

@@ -1,58 +1,74 @@
 #include "Library.h"
 #include <iostream>
-#include <fstream>
-#include <sstream>
+#include <stdexcept>
+
+void space() {
+    std::cout << "\n\n";
+}
 
 int main() {
-   std::cout << "KÜTÜPHANE SİSTEMİ " << std::endl; 
-   std::cout << "----------------- " << std::endl;
+    try {
+        Library library;
 
-   int choose;std::cin >> choose;
-   std::cout << std::endl;
-   std::cin.ignore();
+        library.addBookByISBN("9781853261589", 4);
+        library.addBookByISBN("9781853261589", 8);   
+        library.addBookByISBN("9780141915685", 5);
+        library.addBookByISBN("9786057406071", 3);
+        library.addBookByISBN("9780141915685", -2);  
+        library.addBookByISBN("0000000000000", 1);   
+        library.displayBooks(10, 0);
+        space();
 
-   std::string x,y,z,m;
-   int a;
+        library.addMember(Member("00ADC43", "Civan Kolcak", "05678902345", "civan@gmail.com"));
+        library.addMember(Member("00ADC44", "Test User", "05551112233", "test@example.com"));
+        library.addMember(Member("00ADC43", "Duplicate", "000", "dup@example.com")); 
+        library.displayMembers(10, 0);
+        space();
 
-   Library library;
+        library.borrowBook("00ADC43", "9781853261589");  
+        library.borrowBook("00ADC43", "9780141915685");  
+        library.borrowBook("NOPE", "9781853261589");     
+        library.borrowBook("00ADC44", "0000000000000");  
+        library.displayBorrowRecords(10, 0);
+        space();
+        library.displayBooks(10, 0);
+        space();                 
 
+        library.removeMember("00ADC43");                 
+        library.removeBook("9781853261589");             
 
-   std::ifstream s("Deneme.txt");
-   std::string okunan;
-   while(std::getline(s,okunan)){
-       std::stringstream ss(okunan);
-       std::string bookid,bookname,authorname,category,stock;
-       std::getline(ss,bookid,'|');
-       std::getline(ss,bookname,'|');
-       std::getline(ss,authorname,'|');
-       std::getline(ss,category,'|');
-       std::getline(ss,stock,'|');
-       Book book1(bookid,bookname,authorname,category,std::stoi(stock));
-       library.addBook(book1);
-   }
-   
-   switch(choose){
-    case 1: {
-       std::cout << "Kitabın adını giriniz : ";
-       std::getline(std::cin,x);
-       std::cout << "Kitabın idsini giriniz : ";
-       std::getline(std::cin,y);
-       std::cout << "Kitabın kategorisini giriniz : ";
-       std::getline(std::cin,z);
-       std::cout << "Kitabın yazarını giriniz : ";
-       std::getline(std::cin,m);
-       std::cout << "Kitabın mevvcut stogunu giriniz : ";
-       std::cin >> a;
-       Book book1(y,x,m,z,a);
-       library.addBook(book1);
-       std::ofstream dosya_acıcı;
-       dosya_acıcı.open("Deneme.txt",std::ios::app);
-       dosya_acıcı << book1.getBookID() << "|" << book1.getTitle() << "|" << book1.getAuthor() << "|" << book1.getCategory() << "|" << book1.getAvailableStock() << std::endl;
-       dosya_acıcı.close();
-       break;
+        library.returnBook("00ADC43", "9781853261589");  
+        library.returnBook("00ADC43", "9781853261589");  
+        library.displayBorrowRecords(10, 0);  
+        space();           
+        library.displayBooks(10, 0); 
+        space();                    
+
+        library.displayBooks(2, 0); 
+        space();                    
+        library.displayBooks(2, 2); 
+        space();                
+        library.displayBooks(0, 0); 
+        space();                     
+
+        library.removeMember("00ADC44");                
+        library.removeMember("00ADC44");                
+        library.removeMember("00ADC43");                 
+        library.removeBook("9786057406071");             
+        library.displayMembers(10, 0);
+        space();
+        library.displayBooks(10, 0);
+        space();
     }
-    case 2:{
-       library.displayAllBooks();
-    }
+    catch (const std::exception& e) {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        return 1;
     }
 }
+
+//çalıştırma komutu:
+/*
+g++ -std=c++17 -Wall -Wextra main.cpp Book.cpp Member.cpp BorrowRecord.cpp TimeUtils.cpp DatabaseManager.cpp BookApiClient.cpp Library.cpp -I/opt/homebrew/include -I/opt/homebrew/opt/sqlite/include -L/opt/homebrew/opt/sqlite/lib -lcurl -lsqlite3 -o app
+rm -f main.db && ./app
+*/
+
