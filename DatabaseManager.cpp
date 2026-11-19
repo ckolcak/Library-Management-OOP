@@ -1,4 +1,5 @@
 #include "DatabaseManager.h"
+#include "TimeUtils.h"
 #include <stdexcept>
 
 DatabaseManager::DatabaseManager() {
@@ -48,6 +49,21 @@ DatabaseManager::DatabaseManager() {
     result = sqlite3_exec(db, createBorrowRecordTable, nullptr, nullptr, nullptr);
     if(result != SQLITE_OK)
         closeAndThrow("Failed to create the BorrowRecords table.");
+
+    const char* createFinesTable =
+    "CREATE TABLE IF NOT EXISTS Fines("
+    "recordID INTEGER PRIMARY KEY,"
+    "memberID TEXT NOT NULL,"
+    "penaltyAmount INTEGER NOT NULL,"
+    "createdAt TEXT NOT NULL,"
+    "paid INTEGER NOT NULL DEFAULT 0,"
+    "paidAt TEXT,"
+    "FOREIGN KEY (recordID) REFERENCES BorrowRecords(recordID),"
+    "FOREIGN KEY (memberID) REFERENCES Members(id)"
+    ");";
+    result = sqlite3_exec(db, createFinesTable, nullptr, nullptr, nullptr);
+    if(result != SQLITE_OK)
+        closeAndThrow("Failed to create the Fines table.");
 }
 
 
@@ -287,6 +303,8 @@ bool DatabaseManager::removeMember(const std::string& memberID) {
     return true;
 }
 
+
+
 bool DatabaseManager::borrowBook(const BorrowRecord& br) {
     int result = sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
     if(result != SQLITE_OK) {
@@ -348,6 +366,18 @@ bool DatabaseManager::returnBook(const std::string& memberID, const std::string&
         throw std::runtime_error("Failed to begin transaction: " + errorMsg);
     }
 
+    std::optional<BorrowRecord> activeBorrow;
+    try {
+        activeBorrow = findActiveBorrow(memberID, isbn);
+        if(activeBorrow == std::nullopt) {
+            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+            return false;
+        }
+    } catch(...) {
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+        throw;
+    }
+
     const char* bookReturn = "UPDATE BorrowRecords SET returnDate = ? WHERE isbn = ? AND memberID = ? AND returnDate IS NULL;";
 
     sqlite3_stmt* stmt = nullptr;
@@ -382,10 +412,12 @@ bool DatabaseManager::returnBook(const std::string& memberID, const std::string&
         return false;
     }
     try {
+        activeBorrow.value().setReturnDate(returnTime);
         if(!increaseBookStock(isbn, 1)) {
             sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
             return false;
         }
+        insertFineIfLate(activeBorrow.value());
     } catch(...) { 
         sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
         throw;// Önce geri al, sonra hatayı olduğu gibi yukarı ilet.
@@ -400,6 +432,50 @@ bool DatabaseManager::returnBook(const std::string& memberID, const std::string&
     return true;
 }
 
+
+
+void DatabaseManager::insertFineIfLate(const BorrowRecord& br) { //bu fonksiyona daha iyi bak
+    if(br.getReturnDate() == std::nullopt)
+        throw std::runtime_error("Book not returned yet");
+
+    if(br.getReturnDate() <= br.getDueDate())
+        return;
+
+    SysClock::duration diff = br.getReturnDate().value() - br.getDueDate();
+    int hours = std::chrono::ceil<std::chrono::hours> (diff).count();
+    int days = (hours + 23)/24;
+    int amount = days * dailyPenalty;
+
+    const char* insertFile = 
+    "INSERT INTO Fines (recordID, memberID, penaltyAmount, createdAt)" 
+    "VALUES (?, ?, ?, ?);";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    int result = sqlite3_prepare_v2(db, insertFile, -1, &stmt, nullptr);
+    if(result != SQLITE_OK) {
+        std::string errorMsg = sqlite3_errmsg(db);
+        throw std::runtime_error("Failed to prepare the statement: " + errorMsg);
+    }
+
+    int recordID = br.getRecordID();
+    std::string memberID = br.getUserID();
+    SysClock::time_point createdAt = br.getReturnDate().value();
+
+    sqlite3_bind_int(stmt, 1, recordID);
+    sqlite3_bind_text(stmt, 2, memberID.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, amount);
+    sqlite3_bind_text(stmt, 4, timeToString(createdAt).c_str(), -1, SQLITE_TRANSIENT);
+
+    result = sqlite3_step(stmt);
+    if(result != SQLITE_DONE) {
+        std::string errorMsg = sqlite3_errmsg(db);
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
+    }
+
+    sqlite3_finalize(stmt);
+}
 
 bool DatabaseManager::increaseBookStock(const std::string& isbn, int amount) {
     if(amount <= 0)
@@ -433,6 +509,7 @@ bool DatabaseManager::increaseBookStock(const std::string& isbn, int amount) {
     sqlite3_finalize(stmt);
     return true;
 }
+
 
 
 std::optional<Book> DatabaseManager::findBookByISBN(const std::string& isbn) const {
@@ -503,6 +580,41 @@ std::optional<Member> DatabaseManager::findMemberByID(const std::string& id) con
     sqlite3_finalize(stmt);
     throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
 }
+
+std::optional<BorrowRecord> DatabaseManager::findActiveBorrow(const std::string& memberID, const std::string& isbn) const {
+    const char* findBorrow = "SELECT recordID, borrowDate, dueDate FROM BorrowRecords WHERE isbn = ? AND memberID = ? AND returnDate IS NULL;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    int result = sqlite3_prepare_v2(db, findBorrow, -1, &stmt, nullptr);
+    if(result != SQLITE_OK) {
+        std::string errorMsg = sqlite3_errmsg(db);
+        throw std::runtime_error("Failed to prepare the statement: " + errorMsg);
+    }
+
+    sqlite3_bind_text(stmt, 1, isbn.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, memberID.c_str(), -1, SQLITE_TRANSIENT);
+
+    result = sqlite3_step(stmt);
+    if(result == SQLITE_ROW) {
+        int recordID = sqlite3_column_int(stmt,0);
+        std::string borrowDate = reinterpret_cast<const char*> (sqlite3_column_text(stmt,1));
+        std::string dueDate = reinterpret_cast<const char*> (sqlite3_column_text(stmt,2));
+        sqlite3_finalize(stmt);
+        BorrowRecord borrowRecord(recordID, memberID, isbn, stringToTime(borrowDate), stringToTime(dueDate), std::nullopt);
+        return borrowRecord;
+    }
+
+    if(result == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return std::nullopt;
+    }
+
+    std::string errorMsg = sqlite3_errmsg(db);
+    sqlite3_finalize(stmt);
+    throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
+}
+
 
 
 bool DatabaseManager::memberHasActiveBorrow(const std::string& memberID) const {

@@ -4,20 +4,21 @@
 #include <sqlite3.h>
 #include <string>
 #include <vector>
-#include <chrono>
 #include <optional>
 #include "Book.h"
 #include "Member.h"
 #include "BorrowRecord.h"
-#include "TimeUtils.h"
 
 class DatabaseManager {
 private:
     sqlite3* db = nullptr;
     const char* fileName = "main.db";
+    const int dailyPenalty = 500;
 
     void closeAndThrow(const std::string& err);
     void startBorrowRecord(const BorrowRecord& br);
+    void insertFineIfLate(const BorrowRecord& br);
+    [[nodiscard]]bool increaseBookStock(const std::string& isbn, int amount);
 
 public:
     DatabaseManager();
@@ -33,8 +34,7 @@ public:
 
     std::optional<Book> findBookByISBN(const std::string& isbn) const;
     std::optional<Member> findMemberByID(const std::string& id) const;
-
-    [[nodiscard]]bool increaseBookStock(const std::string& isbn, int amount);
+    std::optional<BorrowRecord> findActiveBorrow(const std::string& memberID, const std::string& isbn) const;
 
     [[nodiscard]]bool borrowBook(const BorrowRecord& br);
     [[nodiscard]]bool returnBook(const std::string& memberID, const std::string& isbn);
@@ -48,6 +48,7 @@ public:
 
     ~DatabaseManager();
 
+    //ipin ucu kaçtı en baştan kendine hatırlat
 };
      
 #endif 

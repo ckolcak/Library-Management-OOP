@@ -34,3 +34,5 @@ SysClock::time_point BorrowRecord::getDueDate() const {return dueDate;}
 std::optional<SysClock::time_point> BorrowRecord::getReturnDate() const {
     return returnDate;
 }
+
+void BorrowRecord::setReturnDate(const SysClock::time_point& rd) {returnDate = rd;}

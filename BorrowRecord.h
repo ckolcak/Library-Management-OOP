@@ -11,7 +11,7 @@ private:
    int recordID; 
    std::string userID;
    std::string bookID;
-   const int borrowDurationDays = 14;
+   int borrowDurationDays = 14;
 
    SysClock::time_point borrowDate;
    SysClock::time_point dueDate;
@@ -37,6 +37,7 @@ public:
    SysClock::time_point getDueDate() const;
    std::optional<SysClock::time_point> getReturnDate () const;
 
+   void setReturnDate(const SysClock::time_point& rd);
 };
 
 #endif
