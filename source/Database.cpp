@@ -1,7 +1,6 @@
 #include "Database.h"
 #include <stdexcept>
 
-
 Database::Database() {
     int result = sqlite3_open(dbName, &db);
     if(result != SQLITE_OK)
@@ -61,7 +60,6 @@ Database::Database() {
     result = sqlite3_exec(db, createFinesTable, nullptr, nullptr, nullptr);
     if(result != SQLITE_OK)
         closeAndThrow("Failed to create the Fines table.");
-
 }
 
 
@@ -80,7 +78,6 @@ void Database::rollback() {
     sqlite3_exec(db, rollback.c_str(), nullptr, nullptr, nullptr);
 }
 
-
 sqlite3* Database::handle() const {
     return db;
 }
@@ -93,13 +90,12 @@ void Database::closeAndThrow(const std::string& err) { //constructor exception f
     throw std::runtime_error(message);
 }
 
-
 void Database::execute(const std::string& sql) {
     int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
         throw std::runtime_error(sqlite3_errmsg(db));
-    }
 }
+
 
 Database::~Database() {
     sqlite3_close(db);
