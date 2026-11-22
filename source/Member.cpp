@@ -8,6 +8,3 @@ std::string Member::getName() const {return name;}
 std::string Member::getNumber() const {return phoneNumber;}
 std::string Member::getMail() const {return email;}
 
-bool Member::operator==(const Member& other) const{
-    return userID == other.userID;
-}

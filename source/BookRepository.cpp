@@ -1,42 +1,6 @@
 #include "BookRepository.h"
 #include <stdexcept>
 
-std::optional<Book> BookRepository::findBookByISBN(const std::string& isbn) const {
-    const char* findBook = "SELECT title, author, category, stock FROM Books WHERE isbn = ?;";
-
-    sqlite3_stmt* stmt = nullptr;
-
-    int result = sqlite3_prepare_v2(db.handle(), findBook, -1, &stmt, nullptr);
-
-    if(result != SQLITE_OK) {
-        std::string errorMsg = sqlite3_errmsg(db.handle());
-        throw std::runtime_error("Failed to prepare the statement: " + errorMsg);
-    }
-
-    sqlite3_bind_text(stmt, 1, isbn.c_str(), -1, SQLITE_TRANSIENT);
-
-    result = sqlite3_step(stmt);
-    if(result == SQLITE_ROW) { 
-        std::string title = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        std::string author = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        std::string category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        int stock = sqlite3_column_int(stmt, 3);
-
-        sqlite3_finalize(stmt);
-        Book book(isbn, title, author, category, stock);
-        return book;
-    }
-    if(result == SQLITE_DONE) {
-        sqlite3_finalize(stmt);
-        return std::nullopt;
-    }
-
-    std::string errorMsg = sqlite3_errmsg(db.handle());
-    sqlite3_finalize(stmt);
-    throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
-}
-
-
 void BookRepository::addBook(const Book& book) {
     const char* insert2Books = 
     "INSERT INTO Books (isbn , title, author, category, stock)"
@@ -65,6 +29,34 @@ void BookRepository::addBook(const Book& book) {
     }
 
     sqlite3_finalize(stmt);
+}
+
+bool BookRepository::removeBook(const std::string& isbn) {
+    const char* removeBook = "DELETE FROM Books WHERE isbn = ?;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    int result = sqlite3_prepare_v2(db.handle(), removeBook, -1, &stmt, nullptr);
+    if(result != SQLITE_OK) {
+        std::string errorMsg = sqlite3_errmsg(db.handle());
+        throw std::runtime_error("Failed to prepare the statement: " + errorMsg);
+    }
+
+    sqlite3_bind_text(stmt, 1, isbn.c_str(), -1, SQLITE_TRANSIENT);
+
+    result = sqlite3_step(stmt);
+    if(result != SQLITE_DONE) {
+        std::string errorMsg = sqlite3_errmsg(db.handle());
+        sqlite3_finalize(stmt); 
+        throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
+    }
+
+    sqlite3_finalize(stmt); 
+
+    if(!sqlite3_changes(db.handle())) {//isbn yok demek false donunce
+        return false;
+    }
+    return true;
 }
 
 
@@ -126,12 +118,13 @@ bool BookRepository::decreaseStockIfAvailable(const std::string& isbn) {
 }
 
 
-bool BookRepository::removeBook(const std::string& isbn) {
-    const char* removeBook = "DELETE FROM Books WHERE isbn = ?;";
+std::optional<Book> BookRepository::findBookByISBN(const std::string& isbn) const {
+    const char* findBook = "SELECT title, author, category, stock FROM Books WHERE isbn = ?;";
 
     sqlite3_stmt* stmt = nullptr;
 
-    int result = sqlite3_prepare_v2(db.handle(), removeBook, -1, &stmt, nullptr);
+    int result = sqlite3_prepare_v2(db.handle(), findBook, -1, &stmt, nullptr);
+
     if(result != SQLITE_OK) {
         std::string errorMsg = sqlite3_errmsg(db.handle());
         throw std::runtime_error("Failed to prepare the statement: " + errorMsg);
@@ -140,20 +133,25 @@ bool BookRepository::removeBook(const std::string& isbn) {
     sqlite3_bind_text(stmt, 1, isbn.c_str(), -1, SQLITE_TRANSIENT);
 
     result = sqlite3_step(stmt);
-    if(result != SQLITE_DONE) {
-        std::string errorMsg = sqlite3_errmsg(db.handle());
-        sqlite3_finalize(stmt); 
-        throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
+    if(result == SQLITE_ROW) { 
+        std::string title = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string author = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        std::string category = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        int stock = sqlite3_column_int(stmt, 3);
+
+        sqlite3_finalize(stmt);
+        Book book(isbn, title, author, category, stock);
+        return book;
+    }
+    if(result == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return std::nullopt;
     }
 
-    sqlite3_finalize(stmt); 
-
-    if(!sqlite3_changes(db.handle())) {//isbn yok demek false donunce
-        return false;
-    }
-    return true;
+    std::string errorMsg = sqlite3_errmsg(db.handle());
+    sqlite3_finalize(stmt);
+    throw std::runtime_error("Failed to execute the prepared statement: " + errorMsg);
 }
-
 
 void BookRepository::fetchBooks(std::vector<Book>& books, int limit, int offset) const { 
      books.clear();

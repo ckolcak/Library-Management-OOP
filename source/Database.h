@@ -26,6 +26,7 @@ public:
     sqlite3* handle() const;
 
     ~Database();
+    
 };
 
 #endif
